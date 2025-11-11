@@ -1,20 +1,19 @@
 """Dagster definitions for the Dakota Analytics pipeline."""
 import os
-from pathlib import Path
+
 from dagster import (
+    AssetSelection,
+    DefaultScheduleStatus,
     Definitions,
     ScheduleDefinition,
-    DefaultScheduleStatus,
-    load_assets_from_modules,
-    AssetSelection,
     define_asset_job,
+    load_assets_from_modules,
 )
+
 # Temporarily comment out dbt integration to get Dagster working first
 # from dagster_dbt import DbtCliResource, dbt_assets, DbtProject
-
 from orchestration.assets import ingestion
 from orchestration.resources import DuckDBWarehouse, FastAPIClient
-
 
 # TODO: Add dbt integration back once basic Dagster is working
 # # Load dbt project

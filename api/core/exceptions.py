@@ -1,12 +1,13 @@
 """Custom exceptions for the QByte GL Data Service."""
+from typing import Any
+
 from fastapi import HTTPException
-from typing import Any, Dict, Optional
 
 
 class GLDataServiceException(Exception):
     """Base exception for GL Data Service."""
-    
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         self.message = message
         self.details = details or {}
         super().__init__(self.message)
@@ -35,7 +36,7 @@ class ConfigurationError(GLDataServiceException):
 def create_http_exception(
     status_code: int,
     message: str,
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 ) -> HTTPException:
     """Create a standardized HTTP exception."""
     content = {
@@ -44,11 +45,11 @@ def create_http_exception(
     }
     if details:
         content["details"] = details
-    
+
     return HTTPException(status_code=status_code, detail=content)
 
 
-def validation_error(message: str, field: Optional[str] = None) -> HTTPException:
+def validation_error(message: str, field: str | None = None) -> HTTPException:
     """Create a validation error (400)."""
     details = {"field": field} if field else None
     return create_http_exception(400, message, details)
@@ -57,7 +58,7 @@ def validation_error(message: str, field: Optional[str] = None) -> HTTPException
 def not_found_error(resource: str, identifier: str) -> HTTPException:
     """Create a not found error (404)."""
     return create_http_exception(
-        404, 
+        404,
         f"{resource} not found",
         {"identifier": identifier}
     )

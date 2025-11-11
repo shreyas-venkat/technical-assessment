@@ -1,7 +1,6 @@
 """Data models for QByte GL records."""
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Optional
 
 
 @dataclass
@@ -10,11 +9,11 @@ class Account:
     code: str
     name: str
     account_type: str  # REVENUE, EXPENSE, etc.
-    
+
     def is_revenue(self) -> bool:
         """Check if account is a revenue account."""
         return self.account_type == "REVENUE"
-    
+
     def is_capex(self) -> bool:
         """Check if account is capital expenditure."""
         return self.code.startswith("6")
@@ -37,8 +36,8 @@ class GLRecord:
     well_id: str
     lease_name: str
     property_id: str
-    afe_number: Optional[str]
-    jib_number: Optional[str]
+    afe_number: str | None
+    jib_number: str | None
     cost_center: str
     journal_source: str
     transaction_type: str
@@ -52,7 +51,7 @@ class GLRecord:
     created_timestamp: datetime
     created_by: str
     last_modified: datetime
-    
+
     def to_dict(self) -> dict:
         """Convert GL record to dictionary for JSON serialization."""
         return {

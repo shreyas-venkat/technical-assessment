@@ -1,6 +1,6 @@
 """Core models and account management."""
-from .models import Account, GLRecord
 from .accounts import AccountRegistry
+from .models import Account, GLRecord
 
 __all__ = ["Account", "GLRecord", "AccountRegistry"]
 

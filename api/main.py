@@ -1,19 +1,17 @@
 """FastAPI application for QByte GL Data Service."""
 import asyncio
 import logging
-from fastapi import FastAPI, Query, HTTPException, Request
-from fastapi.responses import StreamingResponse, JSONResponse
-from fastapi.exception_handlers import http_exception_handler
 from datetime import date, datetime
-from services.gl_streamer import GLDataStreamer
+
 from core.accounts import AccountRegistry
 from core.exceptions import (
     GLDataServiceException,
     InvalidDateRangeError,
     StreamingError,
-    validation_error,
-    internal_server_error
 )
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+from services.gl_streamer import GLDataStreamer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,20 +20,20 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="QByte GL Data Service",
     description="""
-    A FastAPI service that generates and streams QByte-style General Ledger (GL) data 
-    for oil & gas operations. This service simulates real-time GL entries with realistic 
+    A FastAPI service that generates and streams QByte-style General Ledger (GL) data
+    for oil & gas operations. This service simulates real-time GL entries with realistic
     oil & gas accounting fields including well IDs, AFE numbers, JIB numbers, and more.
-    
+
     ## Features
-    
+
     * Streams GL records one per 30 seconds
     * QByte-compatible data structure
     * Oil & gas specific fields (wells, basins, leases, etc.)
     * Multiple account types (Revenue, Operating Expenses, Capex, Admin)
     * Realistic transaction amounts and dates
-    
+
     ## Usage
-    
+
     Use the `/get-gl` endpoint to receive a continuous stream of GL records.
     Each record is a JSON object sent as a newline-delimited stream.
     """,
@@ -139,25 +137,25 @@ async def root():
     summary="Stream GL Data",
     description="""
     Streams QByte-style General Ledger records.
-    
+
     **Modes:**
-    1. **Continuous streaming**: When no date range is provided, first streams 1000 pre-generated historical 
-       records (generated at startup at 3 per hour spacing), then continues generating new real-time records 
+    1. **Continuous streaming**: When no date range is provided, first streams 1000 pre-generated historical
+       records (generated at startup at 3 per hour spacing), then continues generating new real-time records
        indefinitely, one per second.
-    2. **Date range filter**: When `start_date` and `end_date` are provided, returns a JSON array of records 
+    2. **Date range filter**: When `start_date` and `end_date` are provided, returns a JSON array of records
        from the pre-generated historical batch that fall within the specified date range.
-    
+
     **Parameters:**
     - **start_date**: Start date for historical records (YYYY-MM-DD format). If provided, `end_date` is required.
     - **end_date**: End date for historical records (YYYY-MM-DD format). If provided, `start_date` is required.
-    
+
     **Response Format:**
     - **Without date range**: Streaming response - each line is a JSON object (newline-delimited JSON).
       Streams 1000 pre-generated historical records, then continues with new records indefinitely.
     - **With date range**: JSON response - returns a JSON array of records that match the date range.
       Example: `{"count": 150, "data": [{...}, {...}, ...]}`
     - Each record contains a complete GL entry with oil & gas specific fields
-    
+
     **Example Record:**
     ```json
     {
@@ -176,11 +174,11 @@ async def root():
         ...
     }
     ```
-    
+
     **Examples:**
     - Real-time: `GET /get-gl`
     - Historical: `GET /get-gl?start_date=2024-01-01&end_date=2024-01-15`
-    
+
     **Note:** This is a streaming endpoint. Use Ctrl+C or close the connection to stop.
     """,
     response_description="Stream of GL records as newline-delimited JSON"
@@ -191,29 +189,29 @@ async def stream_gl_data(
 ) -> StreamingResponse:
     """
     Stream GL data records.
-    
-    If date range is provided, filters and returns records from the pre-generated historical batch 
-    that fall within the date range. Otherwise, first streams the pre-generated batch of 1000 historical 
+
+    If date range is provided, filters and returns records from the pre-generated historical batch
+    that fall within the date range. Otherwise, first streams the pre-generated batch of 1000 historical
     records (created at startup), then continues generating new real-time records indefinitely.
-    
+
     Args:
         start_date: Start date for historical batch generation (YYYY-MM-DD format)
         end_date: End date for historical batch generation (YYYY-MM-DD format)
-    
+
     Returns:
         StreamingResponse with GL records as newline-delimited JSON
     """
     # Parse and validate date parameters
     parsed_start_date = None
     parsed_end_date = None
-    
+
     if start_date is not None or end_date is not None:
         if start_date is None or end_date is None:
             raise HTTPException(
                 status_code=400,
                 detail="Both start_date and end_date must be provided together"
             )
-        
+
         # Strip whitespace and parse dates
         try:
             parsed_start_date = date.fromisoformat(start_date.strip())
@@ -222,17 +220,17 @@ async def stream_gl_data(
             raise InvalidDateRangeError(
                 f"Invalid date format. Use YYYY-MM-DD format. Error: {str(e)}",
                 {"start_date": start_date, "end_date": end_date}
-            )
-        
+            ) from e
+
         if parsed_start_date > parsed_end_date:
             raise InvalidDateRangeError(
                 "start_date must be before or equal to end_date",
                 {"start_date": str(parsed_start_date), "end_date": str(parsed_end_date)}
             )
-        
+
         # Get filtered records and return as JSON array
         filtered_records = gl_streamer.get_historical_range(parsed_start_date, parsed_end_date)
-        
+
         return JSONResponse(
             content={
                 "count": len(filtered_records),
@@ -241,7 +239,7 @@ async def stream_gl_data(
                 "data": [record.to_dict() for record in filtered_records]
             }
         )
-    
+
     # Otherwise, return buffered records first, then stream new ones
     return StreamingResponse(
         gl_streamer.stream_with_instant_buffer(),
@@ -260,19 +258,19 @@ async def stream_gl_data(
     summary="Get GL Data Batch",
     description="""
     Returns a fixed batch of GL records (non-streaming).
-    
+
     This endpoint is designed for data ingestion jobs that need a predictable,
     finite set of records without the complexity of streaming.
-    
+
     **Parameters:**
     - **limit**: Maximum number of records to return (default: 1000, max: 10000)
     - **start_date**: Start date for historical records (YYYY-MM-DD format, optional)
     - **end_date**: End date for historical records (YYYY-MM-DD format, optional)
-    
+
     **Response Format:**
     - JSON response with a fixed array of records
     - Example: `{"count": 1000, "data": [{...}, {...}, ...]}`
-    
+
     **Examples:**
     - Get 1000 records: `GET /get-gl-batch`
     - Get 500 records: `GET /get-gl-batch?limit=500`
@@ -287,29 +285,29 @@ async def get_gl_batch(
 ):
     """
     Get a batch of GL records (non-streaming).
-    
+
     Returns a fixed number of GL records as a JSON array, perfect for
     data ingestion jobs that need predictable, finite datasets.
-    
+
     Args:
         limit: Maximum number of records to return (1-10000)
         start_date: Start date for historical records (YYYY-MM-DD format)
         end_date: End date for historical records (YYYY-MM-DD format)
-    
+
     Returns:
         JSON response with GL records array
     """
     # Parse and validate date parameters if provided
     parsed_start_date = None
     parsed_end_date = None
-    
+
     if start_date or end_date:
         if start_date is None or end_date is None:
             raise HTTPException(
                 status_code=400,
                 detail="Both start_date and end_date must be provided together"
             )
-        
+
         # Strip whitespace and parse dates
         try:
             parsed_start_date = date.fromisoformat(start_date.strip())
@@ -318,14 +316,14 @@ async def get_gl_batch(
             raise InvalidDateRangeError(
                 f"Invalid date format. Use YYYY-MM-DD format. Error: {str(e)}",
                 {"start_date": start_date, "end_date": end_date}
-            )
-        
+            ) from e
+
         if parsed_start_date > parsed_end_date:
             raise InvalidDateRangeError(
                 "start_date must be before or equal to end_date",
                 {"start_date": str(parsed_start_date), "end_date": str(parsed_end_date)}
             )
-    
+
     # Get records based on parameters
     if parsed_start_date and parsed_end_date:
         # Get filtered records from historical batch
@@ -335,7 +333,7 @@ async def get_gl_batch(
     else:
         # Get records from the buffered historical batch
         records = gl_streamer.get_buffered_records(limit)
-    
+
     return JSONResponse(
         content={
             "count": len(records),
@@ -351,7 +349,7 @@ async def get_gl_batch(
 async def health_check():
     """
     Health check endpoint for monitoring and load balancers.
-    
+
     Returns the service status and basic information about the service health.
     """
     return {
