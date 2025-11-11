@@ -1,0 +1,61 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw data ingested from various sources
+    tables:
+      - name: gl_records
+        description: Raw GL records from FastAPI service
+        columns:
+          - name: gl_entry_id
+            description: Unique identifier for GL entry
+            tests:
+              - not_null
+              - unique
+          - name: transaction_date
+            description: Date of the transaction
+            tests:
+              - not_null
+          - name: account_code
+            description: GL account code
+            tests:
+              - not_null
+          - name: debit_amount
+            description: Debit amount
+            tests:
+              - not_null
+          - name: credit_amount
+            description: Credit amount
+            tests:
+              - not_null
+
+      - name: eia_petroleum
+        description: Raw petroleum data from EIA API
+        columns:
+          - name: period
+            description: Time period for the data
+          - name: value
+            description: Petroleum production value
+
+models:
+  - name: stg_gl_records
+    description: Cleaned and standardized GL records
+    columns:
+      - name: gl_entry_id
+        description: Unique identifier for GL entry
+        tests:
+          - not_null
+          - unique
+      - name: transaction_date
+        description: Date of the transaction
+        tests:
+          - not_null
+      - name: account_type
+        description: Type of GL account (REVENUE, EXPENSE, etc.)
+        tests:
+          - accepted_values:
+              values: ['REVENUE', 'EXPENSE', 'CAPEX', 'ADMIN', 'ASSET', 'LIABILITY']
+      - name: net_amount
+        description: Net amount (debit - credit)
+        tests:
+          - not_null

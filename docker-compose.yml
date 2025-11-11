@@ -2,7 +2,39 @@
 # Enhanced docker-compose with proper configuration for the FastAPI service
 
 services:
-  # Database Layer
+  # Unified Service - Database + dbt + Orchestrator
+  data_platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dakota_data_platform
+    ports:
+      - "3000:3000"  # Dagster orchestrator
+      - "8080:8080"  # Database management API
+    environment:
+      PYTHONPATH: /app
+      DUCKDB_PATH: /app/data/analytics.duckdb
+      DAGSTER_HOME: /app/dagster_home
+      DBT_PROFILES_DIR: /app/dbt
+      # API Keys (set your own values)
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-eac3435fcf5e0fb9a6a4dac9bc3b9abe}
+      READONLY_API_KEY: ${READONLY_API_KEY:-fe0135e8143667b2189544013c5a963d}
+      WRITE_API_KEY: ${WRITE_API_KEY:-90fce07e1a125f77a175e703e5e8666c}
+      INGESTION_BATCH_SIZE: ${INGESTION_BATCH_SIZE:-5000}
+    networks:
+      - dakota_network
+    volumes:
+      - ./data:/app/data  # Mount local data directory to container
+      - dagster_home:/app/dagster_home
+      - dagster_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/server_info", "&&", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database (kept for compatibility)
   postgres:
     image: postgres:15-alpine
     container_name: dakota_postgres
@@ -55,9 +87,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      data_platform:
+        condition: service_healthy
     networks:
       - dakota_network
     restart: unless-stopped
+
 
 networks:
   dakota_network:
@@ -65,3 +100,6 @@ networks:
 
 volumes:
   postgres_data:
+  duckdb_data:
+  dagster_home:  # Dagster metadata persistence
+  dagster_logs:

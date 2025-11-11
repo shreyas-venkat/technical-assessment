@@ -86,9 +86,9 @@ class GLDataStreamer:
             random.uniform = original_uniform
             random.randint = original_randint
         
-        # Reset counter state (batch generation shouldn't affect real-time counter)
-        self._counter = original_counter
-        self._journal_batch = original_batch
+        # Don't reset counter state - let it continue for unique IDs
+        # The counter should continue from where historical batch generation left off
+        # to ensure all gl_entry_id values are unique across historical and real-time records
     
     def _preload_historical_records(self):
         """Pre-load all historical records into buffer immediately."""
@@ -335,6 +335,21 @@ class GLDataStreamer:
                         gl_record = self._record_buffer[i]
                         yield (json.dumps(gl_record.to_dict()) + "\n").encode("utf-8")
                     last_buffer_size = current_buffer_size
+    
+    def get_buffered_records(self, limit: int = None) -> List[GLRecord]:
+        """
+        Get buffered records (historical + any new records generated).
+        
+        Args:
+            limit: Maximum number of records to return (if None, returns all)
+        
+        Returns:
+            List of GLRecord objects from the buffer
+        """
+        if limit is None:
+            return self._record_buffer.copy()
+        else:
+            return self._record_buffer[:limit]
     
     def get_historical_range(
         self, 

@@ -125,6 +125,7 @@ async def root():
         "endpoints": {
             "/health": "Health check endpoint",
             "/get-gl": "Stream GL records (instant buffered records + real-time streaming)",
+            "/get-gl-batch": "Get a fixed batch of GL records (non-streaming)",
             "/docs": "Interactive API documentation",
             "/openapi.json": "OpenAPI schema"
         },
@@ -249,6 +250,99 @@ async def stream_gl_data(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.get(
+    "/get-gl-batch",
+    tags=["streaming"],
+    summary="Get GL Data Batch",
+    description="""
+    Returns a fixed batch of GL records (non-streaming).
+    
+    This endpoint is designed for data ingestion jobs that need a predictable,
+    finite set of records without the complexity of streaming.
+    
+    **Parameters:**
+    - **limit**: Maximum number of records to return (default: 1000, max: 10000)
+    - **start_date**: Start date for historical records (YYYY-MM-DD format, optional)
+    - **end_date**: End date for historical records (YYYY-MM-DD format, optional)
+    
+    **Response Format:**
+    - JSON response with a fixed array of records
+    - Example: `{"count": 1000, "data": [{...}, {...}, ...]}`
+    
+    **Examples:**
+    - Get 1000 records: `GET /get-gl-batch`
+    - Get 500 records: `GET /get-gl-batch?limit=500`
+    - Get records for date range: `GET /get-gl-batch?start_date=2024-01-01&end_date=2024-01-15&limit=2000`
+    """,
+    response_description="JSON array of GL records"
+)
+async def get_gl_batch(
+    limit: int = Query(1000, ge=1, le=10000, description="Maximum number of records to return"),
+    start_date: str = Query(None, description="Start date for historical records (YYYY-MM-DD)"),
+    end_date: str = Query(None, description="End date for historical records (YYYY-MM-DD)")
+):
+    """
+    Get a batch of GL records (non-streaming).
+    
+    Returns a fixed number of GL records as a JSON array, perfect for
+    data ingestion jobs that need predictable, finite datasets.
+    
+    Args:
+        limit: Maximum number of records to return (1-10000)
+        start_date: Start date for historical records (YYYY-MM-DD format)
+        end_date: End date for historical records (YYYY-MM-DD format)
+    
+    Returns:
+        JSON response with GL records array
+    """
+    # Parse and validate date parameters if provided
+    parsed_start_date = None
+    parsed_end_date = None
+    
+    if start_date or end_date:
+        if start_date is None or end_date is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Both start_date and end_date must be provided together"
+            )
+        
+        # Strip whitespace and parse dates
+        try:
+            parsed_start_date = date.fromisoformat(start_date.strip())
+            parsed_end_date = date.fromisoformat(end_date.strip())
+        except ValueError as e:
+            raise InvalidDateRangeError(
+                f"Invalid date format. Use YYYY-MM-DD format. Error: {str(e)}",
+                {"start_date": start_date, "end_date": end_date}
+            )
+        
+        if parsed_start_date > parsed_end_date:
+            raise InvalidDateRangeError(
+                "start_date must be before or equal to end_date",
+                {"start_date": str(parsed_start_date), "end_date": str(parsed_end_date)}
+            )
+    
+    # Get records based on parameters
+    if parsed_start_date and parsed_end_date:
+        # Get filtered records from historical batch
+        records = gl_streamer.get_historical_range(parsed_start_date, parsed_end_date)
+        # Apply limit
+        records = records[:limit]
+    else:
+        # Get records from the buffered historical batch
+        records = gl_streamer.get_buffered_records(limit)
+    
+    return JSONResponse(
+        content={
+            "count": len(records),
+            "limit": limit,
+            "start_date": str(parsed_start_date) if parsed_start_date else None,
+            "end_date": str(parsed_end_date) if parsed_end_date else None,
+            "data": [record.to_dict() for record in records]
         }
     )
 
