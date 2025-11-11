@@ -1,0 +1,49 @@
+[project]
+name = "tech-assesment"
+version = "0.1.0"
+description = "tech-assesment demo"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]==0.121.1",
+    "requests>=2.32.5",
+    "pydantic-settings>=2.0.0",
+    "asyncpg>=0.29.0",
+    "redis>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+]
+
+[tool.ruff]
+# Set the maximum line length
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+# Enable specific rule sets
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+
+[tool.ruff.format]
+# Use double quotes
+quote-style = "double"
+# Indent with spaces
+indent-style = "space"
+# Respect magic trailing comma
+skip-magic-trailing-comma = false

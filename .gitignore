@@ -86,3 +86,6 @@ Thumbs.db
 tmp/
 temp/
 .history/*
+
+# Test files
+view_stream.py

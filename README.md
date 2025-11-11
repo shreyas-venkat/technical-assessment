@@ -10,12 +10,34 @@ Build an end-to-end data pipeline that ingests source data, enriches it with syn
 
 Implement a production-ready data pipeline with these components:
 
-### 1. FastAPI Data Service (20 points)
+### 1. FastAPI Data Service (20 points) **COMPLETED**
 Create a FastAPI application that generates synthetic enrichment data relevant to energy analytics.
 - Use `uv` for dependency management
 - Design and implement useful enrichment data schemas
 - Containerize the service
 - See [api/README.md](api/README.md)
+
+**Implementation Details:**
+- **QByte GL Data Service**: Generates synthetic General Ledger records for oil & gas operations
+- **Deterministic Data**: Fixed seed ensures consistent data across runs
+- **Streaming & Batch**: Real-time streaming (30s intervals) + historical batch data (365 days)
+- **Production Ready**: Custom error handling, health checks, comprehensive logging
+- **Oil & Gas Domain**: Wells, basins, AFE numbers, JIB numbers, proper GL accounting
+
+**Quick Start:**
+```bash
+# Build and run the FastAPI service
+docker compose up --build fastapi
+
+# Access the service
+# API: http://localhost:8000
+# Docs: http://localhost:8000/docs
+# Health: http://localhost:8000/health
+# Stream: http://localhost:8000/get-gl
+
+# Test streaming with Python client
+python view_stream.py
+```
 
 ### 2. Data Ingestion (20 points)
 Build clients to fetch data from:

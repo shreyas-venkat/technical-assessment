@@ -10,6 +10,18 @@ Build a FastAPI service that generates synthetic enrichment data for the pipelin
 - Include health check endpoint
 - Generate data types relevant to your analysis (your choice for what makes sense)
 
+## Local Development with Docker
+
+```bash
+# Build the container
+docker compose build fastapi
+
+# Run the service (and the optional postgres dependency)
+docker compose up fastapi
+```
+
+The API will be exposed on `http://localhost:8000`. Interactive documentation is available at `http://localhost:8000/docs`, and the streaming endpoint example lives at `http://localhost:8000/get-gl`.
+
 ## What We're Looking For
 
 - Clean API design

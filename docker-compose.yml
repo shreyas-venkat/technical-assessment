@@ -1,10 +1,8 @@
-version: '3.8'
-
-# This is a starter template. Modify and extend based on your implementation.
-# The code below is just for example, we expect you to modify it.
+# QByte GL Data Service - Production Ready
+# Enhanced docker-compose with proper configuration for the FastAPI service
 
 services:
-  # PostgreSQL Database or other database
+  # Database Layer
   postgres:
     image: postgres:15-alpine
     container_name: dakota_postgres
@@ -25,12 +23,41 @@ services:
       timeout: 5s
       retries: 5
 
-  # Add your services here:
-  # - FastAPI service
-  # - Orchestrator
-  # - dbt
-  # - Jupyter (optional for notebooks)
-  # etc.
+  # Redis for caching and message queuing
+  redis:
+    image: redis:7-alpine
+    container_name: dakota_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - dakota_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # FastAPI Data Service
+  fastapi:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: dakota_fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dakota_user}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-energy_analytics}
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dakota_network
+    restart: unless-stopped
 
 networks:
   dakota_network:
